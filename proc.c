@@ -133,9 +133,6 @@ found:
   p->sched_info.bjf.priority_ratio = 1;
   p->sched_info.bjf.arrival_time_ratio = 1;
   p->sched_info.bjf.executed_cycle_ratio = 1;
-  p->sched_info.bjf.process_size_ratio = 1;
-  p->sched_info.bjf.process_size = sizeof(p);
-
 
   return p;
 }
@@ -218,9 +215,7 @@ change_queue(int pid, int new_queue) {
     if(p->pid == pid){
       old_queue = p->sched_info.queue;
       p->sched_info.queue = new_queue;
-      // if (new_queue == LOTTERY && p->sched_info.tickets_count <= 0) {
-      //   p->sched_info.tickets_count = (rand() % MAX_RANDOM_TICKETS) + 1;
-      // }
+      
       break;
     }
   }
@@ -322,29 +317,6 @@ exit(void)
   panic("zombie exit");
 }
 
-void
-ageprocs(int osTicks)
-{
-  struct proc *p;
-
-  acquire(&ptable.lock);
-
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-  {
-    if (p->state == RUNNABLE && p->sched_info.queue != ROUND_ROBIN)
-    {
-      if (osTicks - p->sched_info.last_run > 8000)
-      {
-        release(&ptable.lock);
-        change_queue(p->pid, ROUND_ROBIN);
-        acquire(&ptable.lock);
-      }
-    }
-  }
-
-  release(&ptable.lock);
-}
-
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
@@ -437,12 +409,9 @@ get_LCFS(struct proc *lastScheduled)
 static float
 bjfrank(struct proc* p)
 {
-  float res;
-  res = p->sched_info.bjf.priority * p->sched_info.bjf.priority_ratio +
-                      p->sched_info.bjf.arrival_time * p->sched_info.bjf.arrival_time_ratio +
-                      p->sched_info.bjf.executed_cycle * p->sched_info.bjf.executed_cycle_ratio +
-                      p->sched_info.bjf.process_size * p->sched_info.bjf.process_size_ratio;
-  return res;
+  return p->sched_info.bjf.priority * p->sched_info.bjf.priority_ratio +
+         p->sched_info.bjf.arrival_time * p->sched_info.bjf.arrival_time_ratio +
+         p->sched_info.bjf.executed_cycle * p->sched_info.bjf.executed_cycle_ratio;
 }
 
 struct proc*
@@ -488,7 +457,8 @@ scheduler(void)
       lastScheduledRR = p;
   
     }
-    else{    
+    else{
+        
       p = get_LCFS(lastScheduledRR);
       if(!p){
         p = bestjobfirst();
@@ -723,5 +693,38 @@ get_uncle_count(int pid)
 }
 
 
+int change_param_of_all(float priority_ratio, float arrival_time_ratio, 
+    float executed_cycles_ratio , float process_size_ratio)
+{
+  acquire(&ptable.lock);
+  struct proc* p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    p->sched_info.bjf.priority_ratio = priority_ratio;
+    p->sched_info.bjf.arrival_time_ratio = arrival_time_ratio;
+    p->sched_info.bjf.executed_cycle_ratio = executed_cycles_ratio;
+    p->sched_info.bjf.process_size_ratio = process_size_ratio;
+  }
+  release(&ptable.lock);
+  return -1;
+}
 
 
+int change_param_proc(int pid, float priority_ratio, float arrival_time_ratio, 
+    float executed_cycles_ratio , float process_size_ratio)
+{
+  acquire(&ptable.lock);
+  struct proc* p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      p->sched_info.bjf.priority_ratio = priority_ratio;
+      p->sched_info.bjf.arrival_time_ratio = arrival_time_ratio;
+      p->sched_info.bjf.executed_cycle_ratio = executed_cycles_ratio;
+      p->sched_info.bjf.process_size_ratio = process_size_ratio;
+      
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
