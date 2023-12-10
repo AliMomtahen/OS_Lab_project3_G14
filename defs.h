@@ -120,10 +120,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-int change_param_of_all(float , float , 
-    float  , float );
-int change_param_proc(int , float , float , 
-    float  , float );
+void            ageprocs(int);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -153,7 +150,6 @@ int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 
 // syscall.c
-int             argfloat(int, float *);
 int             argint(int, int*);
 int             argptr(int, char**, int);
 int             argstr(int, char**);
@@ -190,6 +186,13 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+
+int change_param_of_all(float , float , 
+    float  , float );
+int change_param_proc(int , float , float , 
+    float  , float );
+int             argfloat(int, float *);
+
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

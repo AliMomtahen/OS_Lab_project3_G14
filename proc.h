@@ -47,6 +47,7 @@ struct bjfinfo {
   float arrival_time_ratio;
   float executed_cycle;
   float executed_cycle_ratio;
+  float process_size;
   float process_size_ratio;
 };
 
@@ -87,3 +88,4 @@ struct proc {
 int get_process_lifetime(int);
 int get_uncle_count(int pid);
 int change_queue(int pid , int new_queue);
+void print_info();
