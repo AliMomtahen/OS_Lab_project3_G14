@@ -87,3 +87,5 @@ struct proc {
 
 int get_process_lifetime(int);
 int get_uncle_count(int pid);
+int change_queue(int pid , int new_queue);
+void print_info();

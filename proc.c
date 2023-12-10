@@ -129,13 +129,14 @@ found:
 
   memset(&p->sched_info, 0, sizeof(p->sched_info));
   p->sched_info.queue = UNSET;
+  p->sched_info.bjf.executed_cycle = 0.0;
   p->sched_info.bjf.priority = BJF_PRIORITY_DEF;
   p->sched_info.bjf.priority_ratio = 1;
   p->sched_info.bjf.arrival_time_ratio = 1;
   p->sched_info.bjf.executed_cycle_ratio = 1;
   p->sched_info.bjf.process_size_ratio = 1;
   p->sched_info.bjf.process_size = sizeof(p);
-
+  
 
   return p;
 }
@@ -172,10 +173,12 @@ userinit(void)
   // writes to be visible, and the lock is also needed
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
-
+  p->sched_info.last_run = ticks;
+  p->sched_info.bjf.arrival_time = ticks;
   p->state = RUNNABLE;
 
   release(&ptable.lock);
+  change_queue(p->pid, UNSET);
 }
 
 // Grow current process's memory by n bytes.
@@ -270,8 +273,12 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->sched_info.last_run = ticks;
+  np->sched_info.bjf.arrival_time = ticks;
 
   release(&ptable.lock);
+
+  change_queue(np->pid, UNSET);
 
   return pid;
 }
@@ -399,7 +406,7 @@ wait(void)
 //      via swtch back to the scheduler.
 
 struct proc*
-roundrobin(struct proc *lastScheduled)
+get_ROUND_ROBIN(struct proc *lastScheduled)
 {
   struct proc *p = lastScheduled;
   for (;;)
@@ -407,7 +414,7 @@ roundrobin(struct proc *lastScheduled)
     p++;
     if (p >= &ptable.proc[NPROC])
       p = ptable.proc;
-
+      
     if (p->state == RUNNABLE || p->sched_info.queue == ROUND_ROBIN)
       return p;
 
@@ -435,7 +442,7 @@ get_LCFS(struct proc *lastScheduled)
 }
 
 static float
-bjfrank(struct proc* p)
+get_BJF(struct proc* p)
 {
   float res;
   res = p->sched_info.bjf.priority * p->sched_info.bjf.priority_ratio +
@@ -455,7 +462,7 @@ bestjobfirst(void)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state != RUNNABLE || p->sched_info.queue != BJF)
       continue;
-    float rank = bjfrank(p);
+    float rank = get_BJF(p);
     if(result == 0 || rank < minrank){
       result = p;
       minrank = rank;
@@ -483,7 +490,7 @@ scheduler(void)
 
     acquire(&ptable.lock);
 
-    p = roundrobin(lastScheduledRR);
+    p = get_ROUND_ROBIN(lastScheduledRR);
     if(p){
       lastScheduledRR = p;
   
@@ -507,6 +514,7 @@ scheduler(void)
     p->state = RUNNING;
 
     p->sched_info.last_run = ticks;
+    // cprintf("lllll\n");
     p->sched_info.bjf.executed_cycle += 0.1f;
 
     swtch(&(c->scheduler), p->context);
@@ -721,6 +729,152 @@ get_uncle_count(int pid)
 
   return sum;
 }
+
+int change_param_of_all(float priority_ratio, float arrival_time_ratio, 
+    float executed_cycles_ratio , float process_size_ratio)
+{
+  acquire(&ptable.lock);
+  struct proc* p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    p->sched_info.bjf.priority_ratio = priority_ratio;
+    p->sched_info.bjf.arrival_time_ratio = arrival_time_ratio;
+    p->sched_info.bjf.executed_cycle_ratio = executed_cycles_ratio;
+    p->sched_info.bjf.process_size_ratio = process_size_ratio;
+  }
+  release(&ptable.lock);
+  return -1;
+}
+
+
+int change_param_proc(int pid, float priority_ratio, float arrival_time_ratio, 
+    float executed_cycles_ratio , float process_size_ratio)
+{
+  acquire(&ptable.lock);
+  struct proc* p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      p->sched_info.bjf.priority_ratio = priority_ratio;
+      p->sched_info.bjf.arrival_time_ratio = arrival_time_ratio;
+      p->sched_info.bjf.executed_cycle_ratio = executed_cycles_ratio;
+      p->sched_info.bjf.process_size_ratio = process_size_ratio;
+      
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
+
+
+int find_digit_number(int x){
+  int y=0;
+  while (x)
+  {
+     x = x / 10;
+     y++;
+  }
+  return y;
+  
+}
+
+void print_info(){
+  struct proc *p=0;
+  cprintf ("PName PID State    Queue Cycle Arrival Priority R_Prty R_Arvl R_Exec R_Size Rank\n");
+  cprintf ("--------------------------------------------------------------------------------\n");
+  int i=0;
+  char *state;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->state != UNUSED) {
+      switch(p->state){
+      case SLEEPING: {
+        state = "sleeping";
+      }break;
+      case RUNNING:{
+        state = "running";
+      }break;
+      case RUNNABLE: {
+        state = "runnable";
+      }break;
+      case ZOMBIE:
+        state = "zombie";
+      break;
+      case EMBRYO: {
+        state = "embryo";
+      }break;
+
+      default:
+        state = "-";
+        break;
+      }
+
+      cprintf ("%s", p->name);
+      for (i = 0; i < 6 - strlen (p->name); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", p->pid);
+      for (i = 0; i < 4 - find_digit_number(p->pid); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%s", state);
+      for (i = 0; i < 9 - strlen (state); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", p->sched_info.queue);
+      for (i = 0; i < 6 - find_digit_number (p->sched_info.queue); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", (int)p->sched_info.bjf.executed_cycle);
+      for (i = 0; i < 6 - find_digit_number ((int)p->sched_info.bjf.executed_cycle); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", p->sched_info.bjf.arrival_time);
+      for (i = 0; i < 8 - find_digit_number (p->sched_info.bjf.arrival_time); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", p->sched_info.bjf.priority);
+      for (i = 0; i < 9 - find_digit_number (p->sched_info.bjf.priority); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", (int)p->sched_info.bjf.priority_ratio);
+      for (i = 0; i < 7 - find_digit_number ((int)p->sched_info.bjf.priority_ratio); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", (int)p->sched_info.bjf.arrival_time_ratio);
+      for (i = 0; i < 7 - find_digit_number ((int)p->sched_info.bjf.arrival_time_ratio); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", (int)p->sched_info.bjf.executed_cycle_ratio);
+      for (i = 0; i < 7 - find_digit_number ((int)p->sched_info.bjf.executed_cycle_ratio); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", (int)p->sched_info.bjf.process_size_ratio);
+      for (i = 0; i < 7 - find_digit_number ((int)p->sched_info.bjf.process_size_ratio); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("%d", (int)get_BJF(p));
+      for (i = 0; i < 4 - find_digit_number ((int)get_BJF(p)); i++) {
+        cprintf (" ");
+      }
+
+      cprintf ("\n");
+    }
+  }
+
+}
+
+
 
 
 

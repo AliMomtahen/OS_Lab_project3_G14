@@ -187,5 +187,12 @@ void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
+int change_param_of_all(float , float , 
+    float  , float );
+int change_param_proc(int , float , float , 
+    float  , float );
+int             argfloat(int, float *);
+
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
