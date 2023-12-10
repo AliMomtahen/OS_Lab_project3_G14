@@ -120,7 +120,10 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-void            ageprocs(int);
+int change_param_of_all(float , float , 
+    float  , float );
+int change_param_proc(int , float , float , 
+    float  , float );
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -150,6 +153,7 @@ int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 
 // syscall.c
+int             argfloat(int, float *);
 int             argint(int, int*);
 int             argptr(int, char**, int);
 int             argstr(int, char**);
