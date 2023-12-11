@@ -129,13 +129,14 @@ found:
 
   memset(&p->sched_info, 0, sizeof(p->sched_info));
   p->sched_info.queue = UNSET;
+  p->sched_info.bjf.executed_cycle = 0.0;
   p->sched_info.bjf.priority = BJF_PRIORITY_DEF;
   p->sched_info.bjf.priority_ratio = 1;
   p->sched_info.bjf.arrival_time_ratio = 1;
   p->sched_info.bjf.executed_cycle_ratio = 1;
   p->sched_info.bjf.process_size_ratio = 1;
   p->sched_info.bjf.process_size = sizeof(p);
-
+  
 
   return p;
 }
@@ -172,10 +173,12 @@ userinit(void)
   // writes to be visible, and the lock is also needed
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
-
+  p->sched_info.last_run = ticks;
+  p->sched_info.bjf.arrival_time = ticks;
   p->state = RUNNABLE;
 
   release(&ptable.lock);
+  change_queue(p->pid, UNSET);
 }
 
 // Grow current process's memory by n bytes.
@@ -270,8 +273,12 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->sched_info.last_run = ticks;
+  np->sched_info.bjf.arrival_time = ticks;
 
   release(&ptable.lock);
+
+  change_queue(np->pid, UNSET);
 
   return pid;
 }
@@ -399,7 +406,7 @@ wait(void)
 //      via swtch back to the scheduler.
 
 struct proc*
-roundrobin(struct proc *lastScheduled)
+get_ROUND_ROBIN(struct proc *lastScheduled)
 {
   struct proc *p = lastScheduled;
   for (;;)
@@ -407,7 +414,7 @@ roundrobin(struct proc *lastScheduled)
     p++;
     if (p >= &ptable.proc[NPROC])
       p = ptable.proc;
-
+      
     if (p->state == RUNNABLE || p->sched_info.queue == ROUND_ROBIN)
       return p;
 
@@ -435,7 +442,7 @@ get_LCFS(struct proc *lastScheduled)
 }
 
 static float
-bjfrank(struct proc* p)
+get_BJF(struct proc* p)
 {
   float res;
   res = p->sched_info.bjf.priority * p->sched_info.bjf.priority_ratio +
@@ -455,7 +462,7 @@ bestjobfirst(void)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state != RUNNABLE || p->sched_info.queue != BJF)
       continue;
-    float rank = bjfrank(p);
+    float rank = get_BJF(p);
     if(result == 0 || rank < minrank){
       result = p;
       minrank = rank;
@@ -483,7 +490,7 @@ scheduler(void)
 
     acquire(&ptable.lock);
 
-    p = roundrobin(lastScheduledRR);
+    p = get_ROUND_ROBIN(lastScheduledRR);
     if(p){
       lastScheduledRR = p;
   
@@ -507,6 +514,7 @@ scheduler(void)
     p->state = RUNNING;
 
     p->sched_info.last_run = ticks;
+    // cprintf("lllll\n");
     p->sched_info.bjf.executed_cycle += 0.1f;
 
     swtch(&(c->scheduler), p->context);
@@ -855,8 +863,10 @@ void print_info(){
         cprintf (" ");
       }
 
+
       cprintf ("%d", (int)bjfrank(p));
       for (i = 0; i < 4 - find_digit_number ((int)bjfrank(p)); i++) {
+
         cprintf (" ");
       }
 
