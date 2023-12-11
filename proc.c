@@ -863,8 +863,10 @@ void print_info(){
         cprintf (" ");
       }
 
-      cprintf ("%d", (int)get_BJF(p));
-      for (i = 0; i < 4 - find_digit_number ((int)get_BJF(p)); i++) {
+
+      cprintf ("%d", (int)bjfrank(p));
+      for (i = 0; i < 4 - find_digit_number ((int)bjfrank(p)); i++) {
+
         cprintf (" ");
       }
 

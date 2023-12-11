@@ -190,6 +190,7 @@ UPROGS=\
 	_copy_file\
 	_wrProc\
 
+
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
 
@@ -264,7 +265,8 @@ EXTRA=\
 	check_lifetime.c\
 	check_uncle.c\
 	wrProc.c\
-	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
+	
+  README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 
 dist:
