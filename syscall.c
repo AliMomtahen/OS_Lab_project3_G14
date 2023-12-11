@@ -130,7 +130,6 @@ extern int sys_change_param_bjf(void);
 extern int sys_change_param_bjf_all(void);
 extern int sys_print_info_proc(void);
 
-
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,

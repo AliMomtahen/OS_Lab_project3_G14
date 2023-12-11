@@ -55,14 +55,14 @@ int main(int argc, char *argv[])
     else if (argc == 2)
     {
         if (!strcmp(argv[1], "print_information"))
-            print_process_info();
+            print_info_proc();
         else
             help();
     }
     else if (argc == 4)
     {
         if (!strcmp(argv[1], "change_queue"))
-            set_queue(atoi(argv[2]), atoi(argv[3]));
+            change_proc_queue(atoi(argv[2]), atoi(argv[3]));
         else
             help();
     }
@@ -70,14 +70,14 @@ int main(int argc, char *argv[])
     {
         if (!strcmp(argv[1], "set_bjf_system"))
 
-            set_bjf_system_params(atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
+            change_param_bjf(atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
         else
             help();
     }
     else if (argc == 7)
     {
         if (!strcmp(argv[1], "set_bjf_process"))
-            set_bjf_process_params(atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
+            change_param_bjf_all(atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
         else
             help();
     }

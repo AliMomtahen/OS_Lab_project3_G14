@@ -46,7 +46,6 @@ get_process_lifetime(int pid)
 
 }
 
-
 // Must be called with interrupts disabled to avoid the caller being
 // rescheduled between reading lapicid and running through the loop.
 struct cpu*
@@ -176,6 +175,7 @@ userinit(void)
   p->sched_info.last_run = ticks;
   p->sched_info.bjf.arrival_time = ticks;
   p->state = RUNNABLE;
+  //p->sched_info.queue = ROUND_ROBIN;
 
   release(&ptable.lock);
   change_queue(p->pid, UNSET);
@@ -208,7 +208,7 @@ change_queue(int pid, int new_queue) {
   int old_queue = -1;
 
   if(new_queue == UNSET){
-    if (pid == 1)
+    if (pid == 1 || pid == 2)
       new_queue = ROUND_ROBIN;
     else if (pid > 1)
       new_queue = LCFS;
@@ -221,9 +221,7 @@ change_queue(int pid, int new_queue) {
     if(p->pid == pid){
       old_queue = p->sched_info.queue;
       p->sched_info.queue = new_queue;
-      // if (new_queue == LOTTERY && p->sched_info.tickets_count <= 0) {
-      //   p->sched_info.tickets_count = (rand() % MAX_RANDOM_TICKETS) + 1;
-      // }
+      
       break;
     }
   }
@@ -333,14 +331,14 @@ void
 ageprocs(int osTicks)
 {
   struct proc *p;
-
+  int threshold = 8000;
   acquire(&ptable.lock);
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->state == RUNNABLE && p->sched_info.queue != ROUND_ROBIN)
     {
-      if (osTicks - p->sched_info.last_run > 8000)
+      if (osTicks - p->sched_info.last_run > threshold)
       {
         release(&ptable.lock);
         change_queue(p->pid, ROUND_ROBIN);
@@ -409,13 +407,13 @@ struct proc*
 get_ROUND_ROBIN(struct proc *lastScheduled)
 {
   struct proc *p = lastScheduled;
-  for (;;)
+  while(1)
   {
     p++;
     if (p >= &ptable.proc[NPROC])
       p = ptable.proc;
-      
-    if (p->state == RUNNABLE || p->sched_info.queue == ROUND_ROBIN)
+
+    if (p->state == RUNNABLE && p->sched_info.queue == ROUND_ROBIN)
       return p;
 
     if (p == lastScheduled)
@@ -442,7 +440,7 @@ get_LCFS(struct proc *lastScheduled)
 }
 
 static float
-get_BJF(struct proc* p)
+bjfrank(struct proc* p)
 {
   float res;
   res = p->sched_info.bjf.priority * p->sched_info.bjf.priority_ratio +
@@ -455,25 +453,24 @@ get_BJF(struct proc* p)
 struct proc*
 bestjobfirst(void)
 {
-  struct proc* result = 0;
   float minrank;
+  struct proc* result = 0;
+  
 
   struct proc* p;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state != RUNNABLE || p->sched_info.queue != BJF)
-      continue;
-    float rank = get_BJF(p);
-    if(result == 0 || rank < minrank){
-      result = p;
-      minrank = rank;
-    }
+    if(p->state == RUNNABLE && p->sched_info.queue == BJF){
+        float rank = bjfrank(p);
+        if(result == 0 || rank < minrank){
+          result = p;
+          minrank = rank;
+        }
+    }else
+      continue; 
   }
 
   return result;
 }
-
-
-
 
 void
 scheduler(void)
@@ -505,16 +502,18 @@ scheduler(void)
         }
       }
     }
-
+    
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
+    //cprintf("befor %d\n" , p->state);
+
     c->proc = p;
     switchuvm(p);
     p->state = RUNNING;
 
     p->sched_info.last_run = ticks;
-    // cprintf("lllll\n");
+    
     p->sched_info.bjf.executed_cycle += 0.1f;
 
     swtch(&(c->scheduler), p->context);
@@ -523,6 +522,7 @@ scheduler(void)
     // It should have changed its p->state before coming back.
     c->proc = 0;
     release(&ptable.lock);
+    //cprintf("after %d\n" , p->state);
   }
 }
 
@@ -733,14 +733,16 @@ get_uncle_count(int pid)
 int change_param_of_all(float priority_ratio, float arrival_time_ratio, 
     float executed_cycles_ratio , float process_size_ratio)
 {
+  
   acquire(&ptable.lock);
   struct proc* p;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED){
     p->sched_info.bjf.priority_ratio = priority_ratio;
     p->sched_info.bjf.arrival_time_ratio = arrival_time_ratio;
     p->sched_info.bjf.executed_cycle_ratio = executed_cycles_ratio;
     p->sched_info.bjf.process_size_ratio = process_size_ratio;
-  }
+  }}
   release(&ptable.lock);
   return -1;
 }
@@ -751,8 +753,10 @@ int change_param_proc(int pid, float priority_ratio, float arrival_time_ratio,
 {
   acquire(&ptable.lock);
   struct proc* p;
+  
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
+      
       p->sched_info.bjf.priority_ratio = priority_ratio;
       p->sched_info.bjf.arrival_time_ratio = arrival_time_ratio;
       p->sched_info.bjf.executed_cycle_ratio = executed_cycles_ratio;
@@ -863,10 +867,8 @@ void print_info(){
         cprintf (" ");
       }
 
-
       cprintf ("%d", (int)bjfrank(p));
       for (i = 0; i < 4 - find_digit_number ((int)bjfrank(p)); i++) {
-
         cprintf (" ");
       }
 

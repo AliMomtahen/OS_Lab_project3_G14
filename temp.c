@@ -1,52 +1,5 @@
-int change_param_of_all(float priority_ratio, float arrival_time_ratio, 
-    float executed_cycles_ratio , float process_size_ratio)
-{
-  acquire(&ptable.lock);
-  struct proc* p;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    p->sched_info.bjf.priority_ratio = priority_ratio;
-    p->sched_info.bjf.arrival_time_ratio = arrival_time_ratio;
-    p->sched_info.bjf.executed_cycle_ratio = executed_cycles_ratio;
-    p->sched_info.bjf.process_size_ratio = process_size_ratio;
-  }
-  release(&ptable.lock);
-  return -1;
-}
 
-
-int change_param_proc(int pid, float priority_ratio, float arrival_time_ratio, 
-    float executed_cycles_ratio , float process_size_ratio)
-{
-  acquire(&ptable.lock);
-  struct proc* p;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->pid == pid){
-      p->sched_info.bjf.priority_ratio = priority_ratio;
-      p->sched_info.bjf.arrival_time_ratio = arrival_time_ratio;
-      p->sched_info.bjf.executed_cycle_ratio = executed_cycles_ratio;
-      p->sched_info.bjf.process_size_ratio = process_size_ratio;
-      
-      release(&ptable.lock);
-      return 0;
-    }
-  }
-  release(&ptable.lock);
-  return -1;
-}
-
-
-int find_digit_number(int x){
-  int y=0;
-  while (x)
-  {
-     x = x / 10;
-     y++;
-  }
-  return y;
-  
-}
-
-void print_info(){
+void prinfffffft_info(){
   struct proc *p=0;
   cprintf ("PName PID State    Queue Cycle Arrival Priority R_Prty R_Arvl R_Exec R_Size Rank\n");
   cprintf ("--------------------------------------------------------------------------------\n");

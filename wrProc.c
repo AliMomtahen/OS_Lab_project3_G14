@@ -9,7 +9,7 @@
 
 int main()
 {
-    
+    write(1 , "in print\n" , 10);
     print_info_proc();
     
     exit();

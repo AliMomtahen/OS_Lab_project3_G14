@@ -31,7 +31,6 @@ int change_proc_queue(int , int);
 int change_param_bjf(int , float , float , float , float);
 int change_param_bjf_all(float , float ,float , float);
 int print_info_proc(void);
-
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
